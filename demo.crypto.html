@@ -6,6 +6,7 @@ ffmpeg \
     -i big_buck_bunny_480p_trailer.m4v \
     -c:v copy \
     -c:a copy \
+    -hls_list_size 0 \
     -hls_time 6 \
     -hls_segment_filename hls.%04d.ts \
     -y \
