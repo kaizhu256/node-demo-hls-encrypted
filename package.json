@@ -1,9 +1,5 @@
 {
     "description": "demo for playing encrypted hls-media",
-    "main": "lib.demo_hls_encrypted.js",
     "name": "demo-hls-encrypted",
-    "scripts": {
-        "test": "./npm_scripts.sh"
-    },
     "version": "0.0.1"
 }

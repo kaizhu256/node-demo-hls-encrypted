@@ -2983,7 +2983,7 @@ var tsdemuxer_TSDemuxer = function () {
   };
 
   /**
-   * Initializes a new init segment on the demuxer/remuxer interface. Needed for discontinuities/track-switches (or at stream start) 
+   * Initializes a new init segment on the demuxer/remuxer interface. Needed for discontinuities/track-switches (or at stream start)
    * Resets all internal track instances of the demuxer.
    *
    * @override Implements generic demuxing/remuxing interface (see DemuxerInline)
@@ -3013,7 +3013,7 @@ var tsdemuxer_TSDemuxer = function () {
   };
 
   /**
-   * 
+   *
    * @override
    */
 

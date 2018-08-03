@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- "assets.utility2.template.html" -->
+<title>demo-hls-encrypted (0.0.1)</title>
+<style>
+/* jslint-utility2 */
+/*csslint
+*/
+/* jslint-ignore-begin */
+*,
+*:after,
+*:before {
+    box-sizing: border-box;
+}
+/* jslint-ignore-end */
+body {
+    background: #eef;
+    font-family: Arial, Helvetica, sans-serif;
+    margin: 0 40px;
+}
+</style>
+</head>
+
+<body>
+<h1><a href="https://github.com/kaizhu256/node-demo-hls-encrypted" target="_blank">demo-hls-encrypted (0.0.1)</a></h1>
+<h3>demo for playing encrypted hls-media</h3>
+
+<video controls id="video"></video>
+<script src="assets.hls.v0.8.9.crypto.js"></script>
+<script>
+/*
+ffmpeg \
+    -i big_buck_bunny_480p_trailer.m4v \
+    -c:v copy \
+    -c:a copy \
+    -hls_list_size 0 \
+    -hls_time 6 \
+    -hls_segment_filename hls.%04d.ts \
+    -y \
+    hls.m3u8
+ */
+window.modeMediaEncrypted = true;
+window.mediaEncryptedKey = '0000000000000000000000000000000000000000000000000000000000000000';
+var video = document.getElementById('video');
+if(Hls.isSupported()) {
+    var hls = new Hls();
+    hls.loadSource('hls.m3u8.encrypted');
+    hls.attachMedia(video);
+    hls.on(Hls.Events.MANIFEST_PARSED,function() {
+        video.play();
+});
+} else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+    video.src = 'hls.m3u8.encrypted';
+    video.addEventListener('loadedmetadata',function() {
+        video.play();
+    });
+}
+</script>
+</body>
+</html>

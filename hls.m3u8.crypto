@@ -1,0 +1,17 @@
+#EXTM3U
+#EXT-X-VERSION:3
+#EXT-X-TARGETDURATION:9
+#EXT-X-MEDIA-SEQUENCE:0
+#EXTINF:9.080000,
+hls.0000.ts.encrypted
+#EXTINF:4.120000,
+hls.0001.ts.encrypted
+#EXTINF:5.680000,
+hls.0002.ts.encrypted
+#EXTINF:6.040000,
+hls.0003.ts.encrypted
+#EXTINF:5.320000,
+hls.0004.ts.encrypted
+#EXTINF:2.240000,
+hls.0005.ts.encrypted
+#EXT-X-ENDLIST

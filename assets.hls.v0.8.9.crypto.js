@@ -1,3 +1,97 @@
+var local;
+(function () {
+    (function () {
+        local = local || {};
+        local.base64ToBuffer = function (b64, mode) {
+        /*
+         * this function will convert b64 to Uint8Array
+         * https://gist.github.com/wang-bin/7332335
+         */
+            /*globals Uint8Array*/
+            var bff, byte, chr, ii, jj, map64, mod4;
+            b64 = b64 || '';
+            bff = new Uint8Array(b64.length); // 3/4
+            byte = 0;
+            jj = 0;
+            map64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+            mod4 = 0;
+            for (ii = 0; ii < b64.length; ii += 1) {
+                chr = map64.indexOf(b64[ii]);
+                if (chr >= 0) {
+                    mod4 %= 4;
+                    if (mod4 === 0) {
+                        byte = chr;
+                    } else {
+                        byte = byte * 64 + chr;
+                        bff[jj] = 255 & (byte >> ((-2 * (mod4 + 1)) & 6));
+                        jj += 1;
+                    }
+                    mod4 += 1;
+                }
+            }
+            // optimization - create resized-view of bff
+            bff = bff.subarray(0, jj);
+            // mode !== 'string'
+            if (mode !== 'string') {
+                return bff;
+            }
+            // mode === 'string' - browser js-env
+            if (typeof window === 'object' && window && typeof window.TextDecoder === 'function') {
+                return new window.TextDecoder().decode(bff);
+            }
+            // mode === 'string' - node js-env
+            Object.setPrototypeOf(bff, Buffer.prototype);
+            return String(bff);
+        };
+        local.cryptoAes256CbcByteDecrypt = function (key, data, onError, mode) {
+        /*
+         * this function will aes-256-cbc decrypt with the hex-key, Uint8Array data
+         * example usage:
+            key = '0000000000000000000000000000000000000000000000000000000000000000';
+            local.cryptoAes256CbcByteEncrypt(key, new Uint8Array([1,2,3]), function (error, data) {
+                console.assert(!error, error);
+                local.cryptoAes256CbcByteDecrypt(key, data, console.log);
+            });
+         */
+            /*globals Uint8Array*/
+            var cipher, crypto, ii, iv, tmp;
+            // init key
+            tmp = key;
+            key = new Uint8Array(32);
+            for (ii = 0; ii < key.length; ii += 2) {
+                key[ii] = parseInt(tmp.slice(2 * ii, 2 * ii + 2), 16);
+            }
+            // base64
+            if (mode === 'base64') {
+                data = local.base64ToBuffer(data);
+            }
+            if (!(data instanceof Uint8Array)) {
+                data = new Uint8Array(data);
+            }
+            // init iv
+            iv = data.subarray(0, 16);
+            // optimization - create resized-view of data
+            data = data.subarray(16);
+            crypto = typeof window === 'object' && window.crypto;
+            /* istanbul ignore next */
+            if (!(crypto && crypto.subtle && typeof crypto.subtle.importKey === 'function')) {
+                setTimeout(function () {
+                    crypto = require('crypto');
+                    cipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
+                    onError(null, Buffer.concat([cipher.update(data), cipher.final()]));
+                });
+                return;
+            }
+            crypto.subtle.importKey('raw', key, {
+                name: 'AES-CBC'
+            }, false, ['decrypt']).then(function (key) {
+                crypto.subtle.decrypt({ iv: iv, name: 'AES-CBC' }, key, data).then(function (data) {
+                    onError(null, new Uint8Array(data));
+                }).catch(onError);
+            }).catch(onError);
+        };
+    }());
+}());
 (function webpackUniversalModuleDefinition(root, factory) {
 	if(typeof exports === 'object' && typeof module === 'object')
 		module.exports = factory();
@@ -2983,7 +3077,7 @@ var tsdemuxer_TSDemuxer = function () {
   };
 
   /**
-   * Initializes a new init segment on the demuxer/remuxer interface. Needed for discontinuities/track-switches (or at stream start) 
+   * Initializes a new init segment on the demuxer/remuxer interface. Needed for discontinuities/track-switches (or at stream start)
    * Resets all internal track instances of the demuxer.
    *
    * @override Implements generic demuxing/remuxing interface (see DemuxerInline)
@@ -3013,7 +3107,7 @@ var tsdemuxer_TSDemuxer = function () {
   };
 
   /**
-   * 
+   *
    * @override
    */
 
@@ -10919,6 +11013,22 @@ var xhr_loader_XhrLoader = function () {
           }
           stats.loaded = stats.total = len;
           var response = { url: xhr.responseURL, data: data };
+          if (data && window.modeMediaEncrypted && window.mediaEncryptedKey) {
+              var self = this;
+              local.cryptoAes256CbcByteDecrypt(
+                window.mediaEncryptedKey,
+                data,
+                function (error, data) {
+                  response.data = typeof xhr.response === 'string'
+                    ? new TextDecoder().decode(data)
+                    : data;
+                  stats.loaded = stats.total = data.byteLength;
+                  self.callbacks.onSuccess(response, stats, context, xhr);
+                },
+                typeof xhr.response === 'string' && 'base64'
+              );
+              return;
+          }
           this.callbacks.onSuccess(response, stats, context, xhr);
         } else {
           // if max nb of retries reached or if http status between 400 and 499 (such error cannot be recovered, retrying is useless), return error
