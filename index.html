@@ -42,16 +42,16 @@ ffmpeg \
     -y \
     hls.m3u8
  */
-window.modeMediaEncrypted = true;
 window.mediaEncryptedKey = '0000000000000000000000000000000000000000000000000000000000000000';
+window.modeMediaEncrypted = true;
 var video = document.getElementById('video');
-if(Hls.isSupported()) {
+if(Hls.isSupported() || true) {
     var hls = new Hls();
     hls.loadSource('hls.m3u8.encrypted');
     hls.attachMedia(video);
     hls.on(Hls.Events.MANIFEST_PARSED,function() {
         video.play();
-});
+    });
 } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
     video.src = 'hls.m3u8.encrypted';
     video.addEventListener('loadedmetadata',function() {

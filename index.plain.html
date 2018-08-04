@@ -49,7 +49,7 @@ if(Hls.isSupported()) {
     hls.attachMedia(video);
     hls.on(Hls.Events.MANIFEST_PARSED,function() {
         video.play();
-});
+    });
 } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
     video.src = 'hls.m3u8';
     video.addEventListener('loadedmetadata',function() {
