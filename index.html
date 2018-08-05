@@ -1,5 +1,22 @@
 <!doctype html>
 <html lang="en">
+<!--
+ffmpeg \
+    -i big_buck_bunny_480p_trailer.m4v \
+    -c:v copy \
+    -c:a copy \
+    -hls_list_size 0 \
+    -hls_time 6 \
+    -hls_segment_filename hls.%04d.ts \
+    -y \
+    hls.m3u8
+shCryptoAesXxxCbcFileEncrypt 0123456789abcdef0123456789abcdef hls.m3u8.crypto base64 hls.m3u8.encrypted
+shCryptoAesXxxCbcFileDecrypt 0123456789abcdef0123456789abcdef hls.m3u8.encrypted base64
+for II in 0 1 2 3 4 5
+do
+    shCryptoAesXxxCbcFileEncrypt 0123456789abcdef0123456789abcdef "hls.000$II.ts" "" "hls.000$II.ts.encrypted"
+done
+-->
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -16,10 +33,105 @@
     box-sizing: border-box;
 }
 /* jslint-ignore-end */
+@keyframes uiAnimateShake {
+    0%, 50% {
+        transform: translateX(10px);
+    }
+    25%, 75% {
+        transform: translateX(-10px);
+    }
+    100% {
+        transform: translateX(0);
+    }
+}
+@keyframes uiAnimateSpin {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
+a {
+    overflow-wrap: break-word;
+}
 body {
     background: #eef;
     font-family: Arial, Helvetica, sans-serif;
     margin: 0 40px;
+}
+body > div,
+body > input,
+body > pre,
+body > textarea,
+body > .button {
+    margin-bottom: 20px;
+}
+body > input,
+body > .button {
+    width: 20rem;
+}
+body > textarea {
+    height: 10rem;
+    width: 100%;
+}
+body > textarea[readonly] {
+    background: #ddd;
+}
+code,
+pre,
+textarea {
+    font-family: Consolas, Menlo, monospace;
+    font-size: small;
+}
+pre {
+    overflow-wrap: break-word;
+    white-space: pre-wrap;
+}
+textarea {
+    overflow: auto;
+    white-space: pre;
+}
+.button {
+    background-color: #fff;
+    border: 1px solid;
+    border-bottom-color: rgb(186, 186, 186);
+    border-left-color: rgb(209, 209, 209);
+    border-radius: 4px;
+    border-right-color: rgb(209, 209, 209);
+    border-top-color: rgb(216, 216, 216);
+    color: #00d;
+    cursor: pointer;
+    display: inline-block;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 12px;
+    font-style: normal;
+    font-weight: normal;
+    margin: 0;
+    padding: 2px 7px 3px 7px;
+    text-align: center;
+    text-decoration: underline;
+}
+.colorError {
+    color: #d00;
+}
+.uiAnimateShake {
+    animation-duration: 500ms;
+    animation-name: uiAnimateShake;
+}
+.uiAnimateSlide {
+    overflow-y: hidden;
+    transition: max-height ease-in 250ms, min-height ease-in 250ms, padding-bottom ease-in 250ms, padding-top ease-in 250ms;
+}
+.utility2FooterDiv {
+    text-align: center;
+}
+.zeroPixel {
+    border: 0;
+    height: 0;
+    margin: 0;
+    padding: 0;
+    width: 0;
 }
 </style>
 </head>
@@ -27,37 +139,128 @@ body {
 <body>
 <h1><a href="https://github.com/kaizhu256/node-demo-hls-encrypted" target="_blank">demo-hls-encrypted (0.0.1)</a></h1>
 <h3>demo for playing encrypted hls-media</h3>
-
-<video controls id="video"></video>
+<label>cryptoAes128CbcKey</label><br>
+<input id="inputCryptoAes128CbcKey1" readonly type="text" value="0123456789abcdef0123456789abcdef"><br>
+<label>urlM3u8</label><br>
+<input id="inputUrlM3u81" readonly type="text" value="hls.m3u8.encrypted"><br>
+<div></div>
+<video class="domOnEventMediaWithHotkeys" controls id="video1"></video>
 <script src="assets.hls.v0.8.9.crypto.js"></script>
 <script>
-/*
-ffmpeg \
-    -i big_buck_bunny_480p_trailer.m4v \
-    -c:v copy \
-    -c:a copy \
-    -hls_list_size 0 \
-    -hls_time 6 \
-    -hls_segment_filename hls.%04d.ts \
-    -y \
-    hls.m3u8
- */
-window.mediaEncryptedKey = '0000000000000000000000000000000000000000000000000000000000000000';
-window.modeMediaEncrypted = true;
-var video = document.getElementById('video');
-if(Hls.isSupported() || true) {
-    var hls = new Hls();
-    hls.loadSource('hls.m3u8.encrypted');
-    hls.attachMedia(video);
-    hls.on(Hls.Events.MANIFEST_PARSED,function() {
-        video.play();
+/* jslint-utility2 */
+/*jslint
+    bitwise: true,
+    browser: true,
+    maxerr: 4,
+    maxlen: 100,
+    node: true,
+    nomen: true,
+    regexp: true,
+    stupid: true
+*/
+// init domOnEventMediaWithHotkeys
+(function () {
+    /*
+     * this function will add hotkeys to all ".domOnEventMediaWithHotkeys" media-elements
+     */
+    "use strict";
+    var input, onEvent;
+    if (window.domOnEventMediaWithHotkeys) {
+        return;
+    }
+    onEvent = window.domOnEventMediaWithHotkeys = function (event) {
+        var media;
+        media = event;
+        if (media.classList && media.classList.contains("domOnEventMediaWithHotkeys")) {
+            if (media.domOnEventMediaWithHotkeys) {
+                return;
+            }
+            media.domOnEventMediaWithHotkeys = true;
+            ["click", "play", "pause", "seeking"].forEach(function (event) {
+                media.addEventListener(event, window.domOnEventMediaWithHotkeys);
+            });
+            return;
+        }
+        if (event.currentTarget.classList.contains("domOnEventMediaWithHotkeys")) {
+            window.domOnEventMediaWithHotkeysMedia1 = event.currentTarget;
+            window.domOnEventMediaWithHotkeysInput.focus();
+            return;
+        }
+        media = window.domOnEventMediaWithHotkeysMedia1;
+        try {
+            switch (event.key || event.type) {
+            case ",":
+            case ".":
+                media.currentTime += (event.key === "," && -0.03125) || 0.03125;
+                break;
+            case "<":
+            case ">":
+                media.playbackRate *= (event.key === "<" && 0.5) || 2;
+                break;
+            case "ArrowDown":
+            case "ArrowUp":
+                media.volume += (event.key === "ArrowDown" && -0.05) || 0.05;
+                break;
+            case "ArrowLeft":
+            case "ArrowRight":
+                media.currentTime += (event.key === "ArrowLeft" && -5) || 5;
+                break;
+            case "j":
+            case "l":
+                media.currentTime += (event.key === "j" && -10) || 10;
+                break;
+            case "k":
+            case " ":
+                if (media.paused) {
+                    media.play();
+                } else {
+                    media.pause();
+                }
+                break;
+            case "m":
+                media.muted = !media.muted;
+                break;
+            default:
+                if (event.key >= 0) {
+                    media.currentTime = 0.1 * event.key * media.duration;
+                    break;
+                }
+                return;
+            }
+        } catch (ignore) {
+        }
+        event.preventDefault();
+    };
+    input = window.domOnEventMediaWithHotkeysInput = document.createElement("button");
+    input.style = "border:0;height:0;margin:0;padding:0;position:fixed;width:0;z-index:-1;";
+    input.addEventListener("click", onEvent);
+    input.addEventListener("keydown", onEvent);
+    document.body.appendChild(input);
+    Array.from(document.querySelectorAll(".domOnEventMediaWithHotkeys")).forEach(onEvent);
+}());
+(function () {
+    'use strict';
+    var hls;
+    location.search.replace((/([^?=&]+)=([^?=&]+)/g), function (match0, match1, match2) {
+        match0 = match2;
+        switch (match1) {
+        case 'cryptoAes128CbcKey':
+            document.querySelector('#inputCryptoAes128CbcKey1').value = match0;
+            break;
+        case 'urlM3u8':
+            document.querySelector('#inputUrlM3u81').value = match0;
+            break;
+        }
     });
-} else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-    video.src = 'hls.m3u8.encrypted';
-    video.addEventListener('loadedmetadata',function() {
-        video.play();
+    hls = new window.Hls({
+        cryptoAes128CbcKey: document.querySelector('#inputCryptoAes128CbcKey1').value
     });
-}
+    hls.loadSource(document.querySelector('#inputUrlM3u81').value);
+    hls.attachMedia(document.querySelector('#video1'));
+    hls.on(window.Hls.Events.MANIFEST_PARSED, function () {
+        document.querySelector('#video1').play();
+    });
+}());
 </script>
 </body>
 </html>

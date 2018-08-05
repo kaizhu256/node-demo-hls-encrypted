@@ -43,28 +43,31 @@ var local;
             Object.setPrototypeOf(bff, Buffer.prototype);
             return String(bff);
         };
-        local.cryptoAes256CbcByteDecrypt = function (key, data, onError, mode) {
+        local.cryptoAes128CbcByteDecrypt = function (key, data, mode, onError) {
         /*
-         * this function will aes-256-cbc decrypt with the hex-key, Uint8Array data
+         * this function will aes-128-cbc decrypt with the hex-key, Uint8Array data
          * example usage:
-            key = '0000000000000000000000000000000000000000000000000000000000000000';
-            local.cryptoAes256CbcByteEncrypt(key, new Uint8Array([1,2,3]), function (error, data) {
+            data = new Uint8Array([1,2,3]);
+            key = '0123456789abcdef0123456789abcdef';
+            mode = null;
+            local.cryptoAes128CbcByteEncrypt(key, data, mode, function (error, data) {
                 console.assert(!error, error);
-                local.cryptoAes256CbcByteDecrypt(key, data, console.log);
+                local.cryptoAes128CbcByteDecrypt(key, data, mode, console.log);
             });
          */
             /*globals Uint8Array*/
-            var cipher, crypto, ii, iv, tmp;
+            var cipher, crypto, ii, iv;
             // init key
-            tmp = key;
-            key = new Uint8Array(32);
-            for (ii = 0; ii < key.length; ii += 2) {
-                key[ii] = parseInt(tmp.slice(2 * ii, 2 * ii + 2), 16);
+            iv = key;
+            key = new Uint8Array(16);
+            for (ii = 0; ii < key.byteLength; ii += 2) {
+                key[ii] = parseInt(iv.slice(2 * ii, 2 * ii + 2), 16);
             }
             // base64
             if (mode === 'base64') {
                 data = local.base64ToBuffer(data);
             }
+            // normalize data
             if (!(data instanceof Uint8Array)) {
                 data = new Uint8Array(data);
             }
@@ -73,11 +76,10 @@ var local;
             // optimization - create resized-view of data
             data = data.subarray(16);
             crypto = typeof window === 'object' && window.crypto;
-            /* istanbul ignore next */
             if (!(crypto && crypto.subtle && typeof crypto.subtle.importKey === 'function')) {
                 setTimeout(function () {
                     crypto = require('crypto');
-                    cipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
+                    cipher = crypto.createDecipheriv('aes-128-cbc', key, iv);
                     onError(null, Buffer.concat([cipher.update(data), cipher.final()]));
                 });
                 return;
@@ -10902,6 +10904,7 @@ function xhr_loader__classCallCheck(instance, Constructor) { if (!(instance inst
 
 var xhr_loader_XhrLoader = function () {
   function XhrLoader(config) {
+    this.hlsConfig = config;
     xhr_loader__classCallCheck(this, XhrLoader);
 
     if (config && config.xhrSetup) {
@@ -11013,19 +11016,19 @@ var xhr_loader_XhrLoader = function () {
           }
           stats.loaded = stats.total = len;
           var response = { url: xhr.responseURL, data: data };
-          if (data && window.modeMediaEncrypted && window.mediaEncryptedKey) {
-              var self = this;
-              local.cryptoAes256CbcByteDecrypt(
-                window.mediaEncryptedKey,
+          var self = this;
+          if (data && self.hlsConfig.cryptoAes128CbcKey) {
+              local.cryptoAes128CbcByteDecrypt(
+                self.hlsConfig.cryptoAes128CbcKey,
                 data,
+                typeof xhr.response === 'string' && 'base64',
                 function (error, data) {
                   response.data = typeof xhr.response === 'string'
                     ? new TextDecoder().decode(data)
                     : data;
                   stats.loaded = stats.total = data.byteLength;
                   self.callbacks.onSuccess(response, stats, context, xhr);
-                },
-                typeof xhr.response === 'string' && 'base64'
+                }
               );
               return;
           }
