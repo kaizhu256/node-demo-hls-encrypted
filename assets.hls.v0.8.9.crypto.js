@@ -43,28 +43,31 @@ var local;
             Object.setPrototypeOf(bff, Buffer.prototype);
             return String(bff);
         };
-        local.cryptoAes128CbcByteDecrypt = function (key, data, mode, onError) {
+        local.cryptoAesXxxCbcRawDecrypt = function (options, onError) {
         /*
-         * this function will aes-128-cbc decrypt with the hex-key, Uint8Array data
+         * this function will aes-xxx-cbc decrypt with the given options
          * example usage:
             data = new Uint8Array([1,2,3]);
             key = '0123456789abcdef0123456789abcdef';
             mode = null;
-            local.cryptoAes128CbcByteEncrypt(key, data, mode, function (error, data) {
+            local.cryptoAesXxxCbcRawEncrypt({ data: data, key: key, mode: mode }, function (
+                error,
+                data
+            ) {
                 console.assert(!error, error);
-                local.cryptoAes128CbcByteDecrypt(key, data, mode, console.log);
+                local.cryptoAesXxxCbcRawDecrypt({ data: data, key: key, mode: mode }, console.log);
             });
          */
             /*globals Uint8Array*/
-            var cipher, crypto, ii, iv;
+            var cipher, crypto, data, ii, iv, key;
             // init key
-            iv = key;
-            key = new Uint8Array(16);
+            key = new Uint8Array(0.5 * options.key.length);
             for (ii = 0; ii < key.byteLength; ii += 2) {
-                key[ii] = parseInt(iv.slice(2 * ii, 2 * ii + 2), 16);
+                key[ii] = parseInt(options.key.slice(2 * ii, 2 * ii + 2), 16);
             }
+            data = options.data;
             // base64
-            if (mode === 'base64') {
+            if (options.mode === 'base64') {
                 data = local.base64ToBuffer(data);
             }
             // normalize data
@@ -79,7 +82,11 @@ var local;
             if (!(crypto && crypto.subtle && typeof crypto.subtle.importKey === 'function')) {
                 setTimeout(function () {
                     crypto = require('crypto');
-                    cipher = crypto.createDecipheriv('aes-128-cbc', key, iv);
+                    cipher = crypto.createDecipheriv(
+                        'aes-' + (8 * key.byteLength) + '-cbc',
+                        key,
+                        iv
+                    );
                     onError(null, Buffer.concat([cipher.update(data), cipher.final()]));
                 });
                 return;
@@ -11018,18 +11025,17 @@ var xhr_loader_XhrLoader = function () {
           var response = { url: xhr.responseURL, data: data };
           var self = this;
           if (data && self.hlsConfig.cryptoAes128CbcKey) {
-              local.cryptoAes128CbcByteDecrypt(
-                self.hlsConfig.cryptoAes128CbcKey,
-                data,
-                typeof xhr.response === 'string' && 'base64',
-                function (error, data) {
-                  response.data = typeof xhr.response === 'string'
-                    ? new TextDecoder().decode(data)
-                    : data;
-                  stats.loaded = stats.total = data.byteLength;
-                  self.callbacks.onSuccess(response, stats, context, xhr);
-                }
-              );
+              local.cryptoAesXxxCbcRawDecrypt({
+                data: data,
+                key: self.hlsConfig.cryptoAes128CbcKey,
+                mode: typeof xhr.response === 'string' && 'base64'
+              }, function (error, data) {
+                response.data = typeof xhr.response === 'string'
+                  ? new TextDecoder().decode(data)
+                  : data;
+                stats.loaded = stats.total = data.byteLength;
+                self.callbacks.onSuccess(response, stats, context, xhr);
+              });
               return;
           }
           this.callbacks.onSuccess(response, stats, context, xhr);

@@ -1,22 +1,5 @@
 <!doctype html>
 <html lang="en">
-<!--
-ffmpeg \
-    -i big_buck_bunny_480p_trailer.m4v \
-    -c:v copy \
-    -c:a copy \
-    -hls_list_size 0 \
-    -hls_time 6 \
-    -hls_segment_filename hls.%04d.ts \
-    -y \
-    hls.m3u8
-shCryptoAesXxxCbcFileEncrypt 0123456789abcdef0123456789abcdef hls.m3u8.crypto base64 hls.m3u8.encrypted
-shCryptoAesXxxCbcFileDecrypt 0123456789abcdef0123456789abcdef hls.m3u8.encrypted base64
-for II in 0 1 2 3 4 5
-do
-    shCryptoAesXxxCbcFileEncrypt 0123456789abcdef0123456789abcdef "hls.000$II.ts" "" "hls.000$II.ts.encrypted"
-done
--->
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -141,10 +124,10 @@ textarea {
 <h3>demo for playing encrypted hls-media</h3>
 <label>cryptoAes128CbcKey</label><br>
 <input id="inputCryptoAes128CbcKey1" readonly type="text" value="0123456789abcdef0123456789abcdef"><br>
-<label>urlM3u8</label><br>
-<input id="inputUrlM3u81" readonly type="text" value="hls.m3u8.encrypted"><br>
+<label>url</label><br>
+<input id="inputUrl1" readonly type="text" value="hls.m3u8.encrypted"><br>
 <div></div>
-<video class="domOnEventMediaWithHotkeys" controls id="video1"></video>
+<video class="domOnEventMediaHotkeysInit" controls id="video1"></video>
 <script src="assets.hls.v0.8.9.crypto.js"></script>
 <script>
 /* jslint-utility2 */
@@ -158,35 +141,36 @@ textarea {
     regexp: true,
     stupid: true
 */
-// init domOnEventMediaWithHotkeys
+// init domOnEventMediaHotkeys
 (function () {
-    /*
-     * this function will add hotkeys to all ".domOnEventMediaWithHotkeys" media-elements
-     */
+/*
+ * this function will add media-hotkeys to elements with class=".domOnEventMediaHotkeysInit"
+ */
     "use strict";
     var input, onEvent;
-    if (window.domOnEventMediaWithHotkeys) {
+    if (window.domOnEventMediaHotkeys) {
         return;
     }
-    onEvent = window.domOnEventMediaWithHotkeys = function (event) {
+    onEvent = window.domOnEventMediaHotkeys = function (event) {
         var media;
-        media = event;
-        if (media.classList && media.classList.contains("domOnEventMediaWithHotkeys")) {
-            if (media.domOnEventMediaWithHotkeys) {
-                return;
-            }
-            media.domOnEventMediaWithHotkeys = true;
-            ["click", "play", "pause", "seeking"].forEach(function (event) {
-                media.addEventListener(event, window.domOnEventMediaWithHotkeys);
+        if (event === "init") {
+            Array.from(
+                document.querySelectorAll(".domOnEventMediaHotkeysInit")
+            ).forEach(function (media) {
+                media.classList.remove("domOnEventMediaHotkeysInit");
+                media.classList.add("domOnEventMediaHotkeys");
+                ["play", "pause", "seeking"].forEach(function (event) {
+                    media.addEventListener(event, onEvent);
+                });
             });
             return;
         }
-        if (event.currentTarget.classList.contains("domOnEventMediaWithHotkeys")) {
-            window.domOnEventMediaWithHotkeysMedia1 = event.currentTarget;
-            window.domOnEventMediaWithHotkeysInput.focus();
+        if (event.currentTarget.classList.contains("domOnEventMediaHotkeys")) {
+            window.domOnEventMediaHotkeysMedia1 = event.currentTarget;
+            window.domOnEventMediaHotkeysInput.focus();
             return;
         }
-        media = window.domOnEventMediaWithHotkeysMedia1;
+        media = window.domOnEventMediaHotkeysMedia1;
         try {
             switch (event.key || event.type) {
             case ",":
@@ -231,31 +215,31 @@ textarea {
         }
         event.preventDefault();
     };
-    input = window.domOnEventMediaWithHotkeysInput = document.createElement("button");
+    input = window.domOnEventMediaHotkeysInput = document.createElement("button");
     input.style = "border:0;height:0;margin:0;padding:0;position:fixed;width:0;z-index:-1;";
     input.addEventListener("click", onEvent);
     input.addEventListener("keydown", onEvent);
     document.body.appendChild(input);
-    Array.from(document.querySelectorAll(".domOnEventMediaWithHotkeys")).forEach(onEvent);
+    onEvent("init");
 }());
 (function () {
     'use strict';
     var hls;
-    location.search.replace((/([^?=&]+)=([^?=&]+)/g), function (match0, match1, match2) {
+    location.search.replace((/([^?=&]+)=([^?=&]*)/g), function (match0, match1, match2) {
         match0 = match2;
         switch (match1) {
         case 'cryptoAes128CbcKey':
             document.querySelector('#inputCryptoAes128CbcKey1').value = match0;
             break;
-        case 'urlM3u8':
-            document.querySelector('#inputUrlM3u81').value = match0;
+        case 'url':
+            document.querySelector('#inputUrl1').value = match0;
             break;
         }
     });
     hls = new window.Hls({
         cryptoAes128CbcKey: document.querySelector('#inputCryptoAes128CbcKey1').value
     });
-    hls.loadSource(document.querySelector('#inputUrlM3u81').value);
+    hls.loadSource(document.querySelector('#inputUrl1').value);
     hls.attachMedia(document.querySelector('#video1'));
     hls.on(window.Hls.Events.MANIFEST_PARSED, function () {
         document.querySelector('#video1').play();
